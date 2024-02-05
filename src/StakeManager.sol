@@ -29,6 +29,13 @@ contract StakeManager is
 
     GlobalConfig public globalConfig;
 
+    event newRegistration(address indexed staker, uint256 registrationTime);
+    event newUnregistration(address indexed staker);
+    event newStake(address indexed staker, uint256 stakedAmount);
+    event newUnstake(address indexed staker, uint256 unstakedAmount);
+    event newSlash(address indexed staker, uint256 slashedAmount);
+    event newWithdrawTreasury(address indexed admin, uint256 amount);
+
     function initialize() public initializer {
         __AccessControl_init();
         __UUPSUpgradeable_init();
@@ -63,6 +70,8 @@ contract StakeManager is
         treasuryBalance += msg.value; //Assume that the registration deposit is sent to the treasury
 
         _grantRole(STAKER_ROLE, msg.sender);
+
+        emit newRegistration(msg.sender, block.timestamp);
     }
 
     function unregister() external override onlyRole(STAKER_ROLE) {
@@ -73,10 +82,14 @@ contract StakeManager is
 
         _revokeRole(STAKER_ROLE, msg.sender);
         userStakeData[msg.sender].registrationTime = 0;
+
+        emit newUnregistration(msg.sender);
     }
 
     function stake() external payable override onlyRole(STAKER_ROLE) {
         userStakeData[msg.sender].stakedAmount += msg.value;
+
+        emit newStake(msg.sender, msg.value);
     }
 
     function unstake() external override onlyRole(STAKER_ROLE) {
@@ -95,6 +108,8 @@ contract StakeManager is
             userStakeData[msg.sender].stakedAmount = 0;
             payable(msg.sender).transfer(stakedAmount);
         }
+
+        emit newUnstake(msg.sender, userStakeData[msg.sender].stakedAmount);
     }
 
     function slash(
@@ -110,6 +125,8 @@ contract StakeManager is
             userStakeData[staker].stakedAmount -= amount;
             treasuryBalance += amount; //Assume that the slashed amount is sent to the treasury
         }
+
+        emit newSlash(staker, amount);
     }
 
     function withdrawTreasury(uint256 amount) external onlyRole(ADMIN_ROLE) {
@@ -122,6 +139,8 @@ contract StakeManager is
             treasuryBalance -= amount;
             payable(msg.sender).transfer(amount);
         }
+
+        emit newWithdrawTreasury(msg.sender, amount);
     }
 
     function _authorizeUpgrade(
